@@ -1,366 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import ModalNovoEpi from "../components/modals/ModalNovoEpi";
-import { api } from "../services/api";
+import ModalDetalhesEstoque from "../components/modals/ModalDetalhesEstoque";
 import { temPermissao } from "../utils/permissoes";
-
-const mockTiposProtecao = [
-  { id: 1, nome: "Proteção da Cabeça" },
-  { id: 2, nome: "Proteção Auditiva" },
-  { id: 3, nome: "Proteção Respiratória" },
-  { id: 4, nome: "Proteção Visual" },
-  { id: 5, nome: "Proteção de Mãos" },
-  { id: 6, nome: "Proteção de Pés" },
-  { id: 7, nome: "Proteção contra Quedas" },
-];
-
-const mockTamanhos = [
-  { id: 1, tamanho: "P" },
-  { id: 2, tamanho: "M" },
-  { id: 3, tamanho: "G" },
-  { id: 4, tamanho: "40" },
-  { id: 5, tamanho: "41" },
-  { id: 6, tamanho: "42" },
-];
-
-const mockEpis = [
-  {
-    id: 1,
-    nome: "Bota de Segurança de Couro",
-    fabricante: "Bracol",
-    CA: "15432",
-    descricao: "Bota ocupacional",
-    validade_CA: "2027-12-31",
-    idTipoProtecao: 6,
-    alerta_minimo: 10,
-  },
-  {
-    id: 2,
-    nome: "Óculos de Proteção Incolor",
-    fabricante: "3M",
-    CA: "10346",
-    descricao: "Óculos para proteção visual",
-    validade_CA: "2028-06-30",
-    idTipoProtecao: 4,
-    alerta_minimo: 20,
-  },
-];
-
-const mockEntradas = [
-  {
-    id: 1,
-    idEpi: 1,
-    idTamanho: 6,
-    data_entrada: "2026-03-01",
-    quantidade: 30,
-    quantidadeAtual: 18,
-    data_fabricacao: "2026-01-10",
-    data_validade: "2027-12-31",
-    lote: "BOTA-001",
-    valor_unitario: 129.9,
-  },
-  {
-    id: 2,
-    idEpi: 2,
-    idTamanho: 2,
-    data_entrada: "2026-03-02",
-    quantidade: 100,
-    quantidadeAtual: 65,
-    data_fabricacao: "2026-02-01",
-    data_validade: "2028-06-30",
-    lote: "OCULOS-003",
-    valor_unitario: 15.5,
-  },
-];
-
-function extrairLista(resp, fallback = []) {
-  const dados = resp?.data ?? resp ?? fallback;
-  return Array.isArray(dados) ? dados : fallback;
-}
-
-async function buscarPrimeiraLista(rotas, fallback = []) {
-  for (const rota of rotas) {
-    try {
-      const resp = await api.get(rota);
-      const lista = extrairLista(resp, fallback);
-      if (Array.isArray(lista)) return lista;
-    } catch (erro) {
-      // tenta a próxima rota
-    }
-  }
-  return fallback;
-}
-
-function normalizarTipoProtecao(item) {
-  return {
-    id: Number(item?.id ?? item?.ID ?? 0),
-    nome: item?.nome ?? item?.Nome ?? item?.descricao ?? "",
-  };
-}
-
-function normalizarTamanho(item) {
-  return {
-    id: Number(item?.id ?? item?.ID ?? 0),
-    tamanho: String(item?.tamanho ?? item?.Tamanho ?? ""),
-  };
-}
-
-function normalizarEpi(item) {
-  return {
-    id: Number(item?.id ?? item?.ID ?? 0),
-    nome: item?.nome ?? item?.Nome ?? "",
-    fabricante: item?.fabricante ?? item?.Fabricante ?? "",
-    CA: item?.CA ?? item?.ca ?? item?.Ca ?? "",
-    descricao: item?.descricao ?? item?.Descricao ?? "",
-    validade_CA:
-      item?.validade_CA ??
-      item?.validadeCA ??
-      item?.validade_ca ??
-      item?.ValidadeCA ??
-      null,
-    idTipoProtecao: Number(
-      item?.idTipoProtecao ??
-        item?.tipo_protecao_id ??
-        item?.tipoProtecaoId ??
-        item?.categoria?.id ??
-        item?.categoria ??
-        item?.id_tipo_protecao ??
-        0
-    ),
-    alerta_minimo: Number(
-      item?.alerta_minimo ?? item?.alertaMinimo ?? item?.AlertaMinimo ?? 0
-    ),
-  };
-}
-
-function normalizarEntrada(item) {
-  return {
-    id: Number(item?.id ?? item?.ID ?? 0),
-    idEpi: Number(
-      item?.idEpi ??
-        item?.epi_id ??
-        item?.idProduto ??
-        item?.produto_id ??
-        item?.id_produto ??
-        item?.epi?.id ??
-        item?.produto?.id ??
-        0
-    ),
-    idTamanho: Number(
-      item?.idTamanho ??
-        item?.tamanho_id ??
-        item?.id_tamanho ??
-        item?.tamanho?.id ??
-        0
-    ),
-    data_entrada: item?.data_entrada ?? item?.dataEntrada ?? null,
-    quantidade: Number(item?.quantidade ?? 0),
-    quantidadeAtual: Number(
-      item?.quantidadeAtual ??
-        item?.quantidade_atual ??
-        item?.estoqueAtual ??
-        item?.estoque_atual ??
-        item?.quantidade ??
-        0
-    ),
-    data_fabricacao: item?.data_fabricacao ?? item?.dataFabricacao ?? null,
-    data_validade:
-      item?.data_validade ?? item?.dataValidade ?? item?.validade ?? null,
-    lote: item?.lote ?? "",
-    valor_unitario: Number(
-      item?.valor_unitario ?? item?.valorUnitario ?? item?.preco ?? 0
-    ),
-  };
-}
-
-function formatarValidade(dataString) {
-  if (!dataString) return "--";
-  const data = new Date(dataString);
-  if (Number.isNaN(data.getTime())) return "--";
-  return data.toLocaleDateString("pt-BR");
-}
-
-function formatarPreco(valor) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(Number(valor || 0));
-}
-
-function calcularStatusValidade(dataString) {
-  if (!dataString) return "normal";
-
-  const hoje = new Date();
-  const validade = new Date(dataString);
-
-  hoje.setHours(0, 0, 0, 0);
-  validade.setHours(0, 0, 0, 0);
-
-  if (Number.isNaN(validade.getTime())) return "normal";
-
-  const diffMs = validade.getTime() - hoje.getTime();
-  const diffDias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDias < 0) return "vencido";
-  if (diffDias <= 30) return "proximo";
-  return "normal";
-}
-
-function getStatusColor(quantidadeAtual, alertaMinimo) {
-  if (quantidadeAtual <= 0) {
-    return "bg-red-100 text-red-700 border-red-200";
-  }
-
-  if (quantidadeAtual <= Number(alertaMinimo || 0)) {
-    return "bg-yellow-100 text-yellow-700 border-yellow-200";
-  }
-
-  return "bg-green-100 text-green-700 border-green-200";
-}
-
-function getStatusTexto(quantidadeAtual, alertaMinimo) {
-  if (quantidadeAtual <= 0) return "Sem estoque";
-  if (quantidadeAtual <= Number(alertaMinimo || 0)) return "Estoque baixo";
-  return "Normal";
-}
-
-function getValidadeBadge(status) {
-  if (status === "vencido") {
-    return "bg-red-100 text-red-700 border-red-200";
-  }
-
-  if (status === "proximo") {
-    return "bg-orange-100 text-orange-700 border-orange-200";
-  }
-
-  return "bg-slate-100 text-slate-700 border-slate-200";
-}
-
-function getValidadeTexto(status) {
-  if (status === "vencido") return "Vencido";
-  if (status === "proximo") return "Próx. venc.";
-  return "Regular";
-}
-
-function ModalDetalhesEstoque({ aberto, item, onClose }) {
-  if (!aberto || !item) return null;
-
-  return (
-    <div className="fixed inset-0 z-[120] bg-black/50 backdrop-blur-[2px] flex items-center justify-center p-4">
-      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden animate-fade-in">
-        <div className="bg-gradient-to-r from-blue-700 to-indigo-700 text-white px-6 py-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h3 className="text-xl font-bold">Detalhes do item em estoque</h3>
-              <p className="text-sm text-blue-100 mt-1">
-                Informações completas do lote selecionado.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="bg-white/10 hover:bg-white/20 transition rounded-lg px-3 py-2 text-sm font-bold"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-
-        <div className="p-6 space-y-5">
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-            <span className="text-[11px] uppercase tracking-wide text-gray-500 font-bold block mb-1">
-              EPI
-            </span>
-            <strong className="text-gray-800 text-lg">{item.nome}</strong>
-            <p className="text-sm text-gray-500 mt-1">{item.descricao || "Sem descrição."}</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <span className="text-[11px] uppercase tracking-wide text-gray-500 font-bold block mb-1">
-                Fabricante
-              </span>
-              <strong className="text-gray-800">{item.fabricante || "-"}</strong>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <span className="text-[11px] uppercase tracking-wide text-gray-500 font-bold block mb-1">
-                Tipo de proteção
-              </span>
-              <strong className="text-gray-800">{item.tipoProtecao || "-"}</strong>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <span className="text-[11px] uppercase tracking-wide text-gray-500 font-bold block mb-1">
-                CA
-              </span>
-              <strong className="text-gray-800">{item.ca || "-"}</strong>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <span className="text-[11px] uppercase tracking-wide text-gray-500 font-bold block mb-1">
-                Lote
-              </span>
-              <strong className="text-gray-800">{item.lote || "-"}</strong>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <span className="text-[11px] uppercase tracking-wide text-gray-500 font-bold block mb-1">
-                Tamanho
-              </span>
-              <strong className="text-gray-800">{item.tamanho || "-"}</strong>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <span className="text-[11px] uppercase tracking-wide text-gray-500 font-bold block mb-1">
-                Preço unitário
-              </span>
-              <strong className="text-gray-800">{formatarPreco(item.preco)}</strong>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <span className="text-[11px] uppercase tracking-wide text-gray-500 font-bold block mb-1">
-                Quantidade inicial
-              </span>
-              <strong className="text-gray-800">{item.quantidadeInicial}</strong>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <span className="text-[11px] uppercase tracking-wide text-gray-500 font-bold block mb-1">
-                Quantidade atual
-              </span>
-              <strong className="text-gray-800">{item.quantidadeAtual}</strong>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <span className="text-[11px] uppercase tracking-wide text-gray-500 font-bold block mb-1">
-                Alerta mínimo
-              </span>
-              <strong className="text-gray-800">{item.alertaMinimo}</strong>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <span className="text-[11px] uppercase tracking-wide text-gray-500 font-bold block mb-1">
-                Validade
-              </span>
-              <strong className="text-gray-800">{formatarValidade(item.validade)}</strong>
-            </div>
-          </div>
-
-          <div className="flex justify-end pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-blue-700 text-white font-bold hover:bg-blue-800 transition"
-            >
-              Fechar
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { formatarPreco, formatarValidade } from "../utils/estoqueFormatters";
+import {
+  calcularStatusValidade,
+  getStatusColor,
+  getStatusTexto,
+  getValidadeBadge,
+  getValidadeTexto,
+  filtrarEstoque,
+  ordenarEstoquePorNome,
+  resumirEstoque,
+  paginarLista,
+} from "../utils/estoqueHelpers";
+import {
+  carregarDadosEstoque,
+  obterDadosMockEstoque,
+} from "../services/estoqueService";
 
 function Estoque({ usuarioLogado }) {
   const [epis, setEpis] = useState([]);
@@ -377,9 +34,19 @@ function Estoque({ usuarioLogado }) {
 
   const itensPorPagina = 6;
 
-  const podeVisualizar = temPermissao(usuarioLogado, "visualizar_estoque");
-  const perfilUsuario =
-    usuarioLogado?.perfil || usuarioLogado?.role || "colaborador";
+  const podeVisualizar = temPermissao(usuarioLogado, [
+    "admin",
+    "tecnico",
+    "almoxarife",
+    "colaborador",
+  ]);
+
+  const perfilUsuario = String(
+    usuarioLogado?.perfil || usuarioLogado?.role || "colaborador"
+  )
+    .trim()
+    .toLowerCase();
+
   const isAdmin = perfilUsuario === "admin";
 
   const carregarProdutos = async () => {
@@ -387,33 +54,22 @@ function Estoque({ usuarioLogado }) {
     setErroTela("");
 
     try {
-      const [listaTipos, listaTamanhos, listaEpis, listaEntradas] =
-        await Promise.all([
-          buscarPrimeiraLista(
-            ["/tipo-protecao", "/tipos-protecao", "/tipos_protecao"],
-            mockTiposProtecao
-          ),
-          buscarPrimeiraLista(["/tamanhos", "/tamanho"], mockTamanhos),
-          buscarPrimeiraLista(["/epis", "/epi", "/produtos"], mockEpis),
-          buscarPrimeiraLista(
-            ["/entrada-epi", "/entrada_epi", "/entradas-epi", "/entradas_epis", "/entradas"],
-            mockEntradas
-          ),
-        ]);
-
-      setTiposProtecao(listaTipos.map(normalizarTipoProtecao));
-      setTamanhos(listaTamanhos.map(normalizarTamanho));
-      setEpis(listaEpis.map(normalizarEpi));
-      setEntradas(listaEntradas.map(normalizarEntrada));
+      const dados = await carregarDadosEstoque();
+      setTiposProtecao(dados.tiposProtecao);
+      setTamanhos(dados.tamanhos);
+      setEpis(dados.epis);
+      setEntradas(dados.entradas);
     } catch (erro) {
       console.error("Erro ao carregar estoque:", erro);
       setErroTela(
         erro?.message || "Não foi possível carregar os dados do estoque."
       );
-      setTiposProtecao(mockTiposProtecao.map(normalizarTipoProtecao));
-      setTamanhos(mockTamanhos.map(normalizarTamanho));
-      setEpis(mockEpis.map(normalizarEpi));
-      setEntradas(mockEntradas.map(normalizarEntrada));
+
+      const dadosMock = obterDadosMockEstoque();
+      setTiposProtecao(dadosMock.tiposProtecao);
+      setTamanhos(dadosMock.tamanhos);
+      setEpis(dadosMock.epis);
+      setEntradas(dadosMock.entradas);
     } finally {
       setCarregando(false);
     }
@@ -453,73 +109,28 @@ function Estoque({ usuarioLogado }) {
   }, [entradas, epis, tamanhos, tiposProtecao]);
 
   const listaFiltrada = useMemo(() => {
-    const termo = busca.toLowerCase().trim();
-
-    if (!termo) return estoqueNormalizado;
-
-    return estoqueNormalizado.filter((item) => {
-      return (
-        (item.nome || "").toLowerCase().includes(termo) ||
-        (item.fabricante || "").toLowerCase().includes(termo) ||
-        (item.ca || "").toLowerCase().includes(termo) ||
-        (item.tipoProtecao || "").toLowerCase().includes(termo) ||
-        (item.lote || "").toLowerCase().includes(termo) ||
-        (item.tamanho || "").toLowerCase().includes(termo) ||
-        (item.descricao || "").toLowerCase().includes(termo)
-      );
-    });
+    return filtrarEstoque(estoqueNormalizado, busca);
   }, [estoqueNormalizado, busca]);
 
   const listaOrdenada = useMemo(() => {
-    return [...listaFiltrada].sort((a, b) =>
-      (a.nome || "").localeCompare(b.nome || "")
-    );
+    return ordenarEstoquePorNome(listaFiltrada);
   }, [listaFiltrada]);
 
   const resumo = useMemo(() => {
-    const totalLotes = estoqueNormalizado.length;
-    const totalItens = estoqueNormalizado.reduce(
-      (acc, item) => acc + Number(item.quantidadeAtual || 0),
-      0
-    );
-    const estoqueBaixo = estoqueNormalizado.filter(
-      (item) =>
-        Number(item.quantidadeAtual || 0) > 0 &&
-        Number(item.quantidadeAtual || 0) <= Number(item.alertaMinimo || 0)
-    ).length;
-
-    const semEstoque = estoqueNormalizado.filter(
-      (item) => Number(item.quantidadeAtual || 0) <= 0
-    ).length;
-
-    const valorTotal = estoqueNormalizado.reduce(
-      (acc, item) => acc + Number(item.valorTotal || 0),
-      0
-    );
-
-    return {
-      totalLotes,
-      totalItens,
-      estoqueBaixo,
-      semEstoque,
-      valorTotal,
-    };
+    return resumirEstoque(estoqueNormalizado);
   }, [estoqueNormalizado]);
 
-  const totalPaginas = Math.max(
-    1,
-    Math.ceil(listaOrdenada.length / itensPorPagina)
-  );
+  const paginacao = useMemo(() => {
+    return paginarLista(listaOrdenada, paginaAtual, itensPorPagina);
+  }, [listaOrdenada, paginaAtual]);
+
+  const { totalPaginas, paginaSegura, itens: itensVisiveis } = paginacao;
 
   useEffect(() => {
-    if (paginaAtual > totalPaginas) {
-      setPaginaAtual(totalPaginas);
+    if (paginaAtual !== paginaSegura) {
+      setPaginaAtual(paginaSegura);
     }
-  }, [paginaAtual, totalPaginas]);
-
-  const indexUltimoItem = paginaAtual * itensPorPagina;
-  const indexPrimeiroItem = indexUltimoItem - itensPorPagina;
-  const itensVisiveis = listaOrdenada.slice(indexPrimeiroItem, indexUltimoItem);
+  }, [paginaAtual, paginaSegura]);
 
   if (!podeVisualizar) {
     return (
@@ -557,50 +168,32 @@ function Estoque({ usuarioLogado }) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <span className="text-[11px] uppercase tracking-wide text-slate-500 font-bold block mb-1">
-              Lotes
-            </span>
-            <strong className="text-2xl text-slate-800">
-              {carregando ? "--" : resumo.totalLotes}
-            </strong>
-          </div>
-
-          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-            <span className="text-[11px] uppercase tracking-wide text-blue-600 font-bold block mb-1">
-              Itens em estoque
-            </span>
-            <strong className="text-2xl text-blue-800">
-              {carregando ? "--" : resumo.totalItens}
-            </strong>
-          </div>
-
-          <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4">
-            <span className="text-[11px] uppercase tracking-wide text-yellow-700 font-bold block mb-1">
-              Estoque baixo
-            </span>
-            <strong className="text-2xl text-yellow-800">
-              {carregando ? "--" : resumo.estoqueBaixo}
-            </strong>
-          </div>
-
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-            <span className="text-[11px] uppercase tracking-wide text-red-700 font-bold block mb-1">
-              Sem estoque
-            </span>
-            <strong className="text-2xl text-red-800">
-              {carregando ? "--" : resumo.semEstoque}
-            </strong>
-          </div>
-
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-            <span className="text-[11px] uppercase tracking-wide text-emerald-700 font-bold block mb-1">
-              Valor estimado
-            </span>
-            <strong className="text-lg md:text-2xl text-emerald-800">
-              {carregando ? "--" : formatarPreco(resumo.valorTotal)}
-            </strong>
-          </div>
+          <ResumoCard label="Lotes" value={carregando ? "--" : resumo.totalLotes} />
+          <ResumoCard
+            label="Itens em estoque"
+            value={carregando ? "--" : resumo.totalItens}
+            className="border-blue-200 bg-blue-50 text-blue-800"
+            labelClassName="text-blue-600"
+          />
+          <ResumoCard
+            label="Estoque baixo"
+            value={carregando ? "--" : resumo.estoqueBaixo}
+            className="border-yellow-200 bg-yellow-50 text-yellow-800"
+            labelClassName="text-yellow-700"
+          />
+          <ResumoCard
+            label="Sem estoque"
+            value={carregando ? "--" : resumo.semEstoque}
+            className="border-red-200 bg-red-50 text-red-800"
+            labelClassName="text-red-700"
+          />
+          <ResumoCard
+            label="Valor estimado"
+            value={carregando ? "--" : formatarPreco(resumo.valorTotal)}
+            className="border-emerald-200 bg-emerald-50 text-emerald-800"
+            labelClassName="text-emerald-700"
+            valueClassName="text-lg md:text-2xl"
+          />
         </div>
 
         {erroTela && (
@@ -821,9 +414,9 @@ function Estoque({ usuarioLogado }) {
               <div className="flex justify-between items-center mt-6 px-1">
                 <button
                   onClick={() => setPaginaAtual((prev) => Math.max(prev - 1, 1))}
-                  disabled={paginaAtual === 1}
+                  disabled={paginaSegura === 1}
                   className={`px-4 py-2 rounded text-sm font-bold border ${
-                    paginaAtual === 1
+                    paginaSegura === 1
                       ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                       : "bg-white text-blue-700 hover:bg-blue-50 border-blue-200"
                   }`}
@@ -832,17 +425,16 @@ function Estoque({ usuarioLogado }) {
                 </button>
 
                 <span className="text-xs lg:text-sm text-gray-600">
-                  Pág. <b className="text-gray-900">{paginaAtual}</b> de{" "}
-                  <b>{totalPaginas}</b>
+                  Pág. <b className="text-gray-900">{paginaSegura}</b> de <b>{totalPaginas}</b>
                 </span>
 
                 <button
                   onClick={() =>
                     setPaginaAtual((prev) => Math.min(prev + 1, totalPaginas))
                   }
-                  disabled={paginaAtual === totalPaginas}
+                  disabled={paginaSegura === totalPaginas}
                   className={`px-4 py-2 rounded text-sm font-bold border ${
-                    paginaAtual === totalPaginas
+                    paginaSegura === totalPaginas
                       ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                       : "bg-white text-blue-700 hover:bg-blue-50 border-blue-200"
                   }`}
@@ -872,6 +464,23 @@ function Estoque({ usuarioLogado }) {
         onClose={() => setItemDetalhe(null)}
       />
     </>
+  );
+}
+
+function ResumoCard({
+  label,
+  value,
+  className = "border-slate-200 bg-slate-50 text-slate-800",
+  labelClassName = "text-slate-500",
+  valueClassName = "text-2xl",
+}) {
+  return (
+    <div className={`rounded-xl border p-4 ${className}`}>
+      <span className={`text-[11px] uppercase tracking-wide font-bold block mb-1 ${labelClassName}`}>
+        {label}
+      </span>
+      <strong className={valueClassName}>{value}</strong>
+    </div>
   );
 }
 
