@@ -45,3 +45,4 @@ export function temPermissao(usuario, permissao) {
 
   return perfisPermitidos.includes(perfilNormalizado);
 }
+

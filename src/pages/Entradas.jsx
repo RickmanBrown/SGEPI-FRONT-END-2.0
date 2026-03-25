@@ -1,187 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { api } from "../services/api";
 import { temPermissao } from "../utils/permissoes";
-
-const mockFornecedores = [
-  {
-    id: 1,
-    razao_social: "3M do Brasil Ltda",
-    nome_fantasia: "3M",
-    cnpj: "45.985.371/0001-08",
-    inscricao_estadual: "123.456.789.000",
-  },
-  {
-    id: 2,
-    razao_social: "Bracol Calçados de Segurança Ltda",
-    nome_fantasia: "Bracol",
-    cnpj: "12.345.678/0001-90",
-    inscricao_estadual: "987.654.321.000",
-  },
-];
-
-const mockEpis = [
-  { id: 1, nome: "Capacete de Segurança", fabricante: "3M", CA: "12345" },
-  { id: 2, nome: "Luva de Proteção", fabricante: "Volk", CA: "67890" },
-  { id: 3, nome: "Sapato de Segurança", fabricante: "Bracol", CA: "54321" },
-  { id: 4, nome: "Óculos de Proteção", fabricante: "3M", CA: "99999" },
-];
-
-const mockTamanhos = [
-  { id: 1, tamanho: "P" },
-  { id: 2, tamanho: "M" },
-  { id: 3, tamanho: "G" },
-  { id: 4, tamanho: "GG" },
-  { id: 5, tamanho: "38" },
-  { id: 6, tamanho: "40" },
-  { id: 7, tamanho: "42" },
-  { id: 8, tamanho: "44" },
-  { id: 9, tamanho: "Único" },
-];
-
-const mockEntradasInicial = [
-  {
-    id: 101,
-    idEpi: 1,
-    idTamanho: 2,
-    idFornecedor: 1,
-    data_entrada: "2024-01-15",
-    quantidade: 50,
-    quantidadeAtual: 50,
-    data_fabricacao: "2023-12-01",
-    data_validade: "2026-12-01",
-    lote: "L-2024-A",
-    valor_unitario: 45.9,
-    nota_fiscal_numero: "12345",
-    nota_fiscal_serie: "1",
-  },
-  {
-    id: 102,
-    idEpi: 3,
-    idTamanho: 7,
-    idFornecedor: 2,
-    data_entrada: "2024-01-18",
-    quantidade: 20,
-    quantidadeAtual: 20,
-    data_fabricacao: "2023-11-15",
-    data_validade: "2026-11-15",
-    lote: "L-998-B",
-    valor_unitario: 120,
-    nota_fiscal_numero: "45678",
-    nota_fiscal_serie: "2",
-  },
-  {
-    id: 103,
-    idEpi: 2,
-    idTamanho: 3,
-    idFornecedor: 1,
-    data_entrada: "2024-02-01",
-    quantidade: 100,
-    quantidadeAtual: 100,
-    data_fabricacao: "2024-01-05",
-    data_validade: "2027-01-05",
-    lote: "L-555-C",
-    valor_unitario: 12.5,
-    nota_fiscal_numero: "78910",
-    nota_fiscal_serie: "1",
-  },
-];
-
-function extrairLista(resp, fallback = []) {
-  const dados = resp?.data ?? resp ?? fallback;
-  return Array.isArray(dados) ? dados : fallback;
-}
-
-async function buscarPrimeiraLista(rotas, fallback) {
-  for (const rota of rotas) {
-    try {
-      const resp = await api.get(rota);
-      const lista = extrairLista(resp, fallback);
-      if (Array.isArray(lista)) return lista;
-    } catch (erro) {
-      // tenta próxima rota
-    }
-  }
-  return fallback;
-}
-
-function normalizarFornecedor(item) {
-  return {
-    id: Number(item?.id ?? item?.ID ?? 0),
-    razao_social: item?.razao_social ?? item?.razaoSocial ?? item?.nome ?? "",
-    nome_fantasia: item?.nome_fantasia ?? item?.nomeFantasia ?? "",
-    cnpj: item?.cnpj ?? "",
-    inscricao_estadual:
-      item?.inscricao_estadual ?? item?.inscricaoEstadual ?? "",
-  };
-}
-
-function normalizarEpi(item) {
-  return {
-    id: Number(item?.id ?? item?.ID ?? 0),
-    nome: item?.nome ?? item?.Nome ?? "",
-    fabricante: item?.fabricante ?? "",
-    CA: item?.CA ?? item?.ca ?? "",
-  };
-}
-
-function normalizarTamanho(item) {
-  return {
-    id: Number(item?.id ?? item?.ID ?? 0),
-    tamanho: String(item?.tamanho ?? item?.Tamanho ?? ""),
-  };
-}
-
-function normalizarEntrada(item) {
-  return {
-    id: Number(item?.id ?? item?.ID ?? 0),
-    idEpi: Number(
-      item?.idEpi ??
-        item?.epi_id ??
-        item?.epiId ??
-        item?.id_epi ??
-        item?.idProduto ??
-        item?.produto_id ??
-        item?.produto?.id ??
-        item?.epi?.id ??
-        0
-    ),
-    idTamanho: Number(
-      item?.idTamanho ??
-        item?.tamanho_id ??
-        item?.tamanhoId ??
-        item?.id_tamanho ??
-        item?.tamanho?.id ??
-        0
-    ),
-    idFornecedor: Number(
-      item?.idFornecedor ??
-        item?.fornecedor_id ??
-        item?.fornecedorId ??
-        item?.id_fornecedor ??
-        item?.fornecedor?.id ??
-        0
-    ),
-    data_entrada: item?.data_entrada ?? item?.dataEntrada ?? "",
-    quantidade: Number(item?.quantidade ?? 0),
-    quantidadeAtual: Number(
-      item?.quantidadeAtual ??
-        item?.quantidade_atual ??
-        item?.estoqueAtual ??
-        item?.estoque_atual ??
-        item?.quantidade ??
-        0
-    ),
-    data_fabricacao: item?.data_fabricacao ?? item?.dataFabricacao ?? "",
-    data_validade:
-      item?.data_validade ?? item?.dataValidade ?? item?.validade ?? "",
-    lote: item?.lote ?? "",
-    valor_unitario: Number(item?.valor_unitario ?? item?.valorUnitario ?? 0),
-    nota_fiscal_numero:
-      item?.nota_fiscal_numero ?? item?.notaFiscalNumero ?? "",
-    nota_fiscal_serie:
-      item?.nota_fiscal_serie ?? item?.notaFiscalSerie ?? "",
-  };
-}
+import { formatarData, formatarMoeda } from "../utils/entradasFormatters";
+import { normalizarEntrada } from "../utils/entradasNormalizers";
+import {
+  filtrarEntradas,
+  ordenarEntradasPorDataDesc,
+  resumirEntradas,
+  paginarLista,
+} from "../utils/entradasHelpers";
+import {
+  carregarDadosEntradas,
+  obterDadosMockEntradas,
+  salvarEntradaNoServidor,
+} from "../services/entradaService";
+import { useEntradasForm } from "../hooks/useEntradasForm";
+import ModalEntrada from "../components/modals/ModalDEntrada";
 
 function Entradas({ usuarioLogado }) {
   const [entradas, setEntradas] = useState([]);
@@ -191,63 +24,71 @@ function Entradas({ usuarioLogado }) {
 
   const [carregandoTela, setCarregandoTela] = useState(true);
   const [erroTela, setErroTela] = useState("");
-
-  const [modalAberto, setModalAberto] = useState(false);
   const [busca, setBusca] = useState("");
   const [paginaAtual, setPaginaAtual] = useState(1);
+
   const itensPorPagina = 5;
 
-  const [idFornecedor, setIdFornecedor] = useState("");
-  const [idEpi, setIdEpi] = useState("");
-  const [idTamanho, setIdTamanho] = useState("");
-  const [quantidade, setQuantidade] = useState("");
-  const [dataEntrada, setDataEntrada] = useState("");
-  const [dataFabricacao, setDataFabricacao] = useState("");
-  const [dataValidade, setDataValidade] = useState("");
-  const [lote, setLote] = useState("");
-  const [valorUnitario, setValorUnitario] = useState("");
-  const [notaFiscalNumero, setNotaFiscalNumero] = useState("");
-  const [notaFiscalSerie, setNotaFiscalSerie] = useState("");
-  const [carregando, setCarregando] = useState(false);
+  const {
+    modalAberto,
+    idFornecedor,
+    setIdFornecedor,
+    idEpi,
+    setIdEpi,
+    idTamanho,
+    setIdTamanho,
+    quantidade,
+    setQuantidade,
+    dataEntrada,
+    setDataEntrada,
+    dataFabricacao,
+    setDataFabricacao,
+    dataValidade,
+    setDataValidade,
+    lote,
+    setLote,
+    valorUnitario,
+    setValorUnitario,
+    notaFiscalNumero,
+    setNotaFiscalNumero,
+    notaFiscalSerie,
+    setNotaFiscalSerie,
+    carregando,
+    setCarregando,
+    abrirModal,
+    fecharModal,
+    setModalAberto,
+  } = useEntradasForm();
 
   const podeVisualizar = !usuarioLogado
     ? true
-    : temPermissao(usuarioLogado, "visualizar_estoque");
+    : temPermissao(usuarioLogado, ["admin", "tecnico", "almoxarife", "colaborador"]);
 
-  const perfilUsuario = usuarioLogado?.perfil || usuarioLogado?.role || "";
   const podeCadastrar = !usuarioLogado
     ? true
-    : perfilUsuario === "admin" || perfilUsuario === "gerente";
+    : temPermissao(usuarioLogado, ["admin", "gerente", "almoxarife", "tecnico"]);
 
   const carregarEntradas = async () => {
     setCarregandoTela(true);
     setErroTela("");
 
     try {
-      const [listaFornecedores, listaEpis, listaTamanhos, listaEntradas] =
-        await Promise.all([
-          buscarPrimeiraLista(["/fornecedores"], mockFornecedores),
-          buscarPrimeiraLista(["/epis", "/epi", "/produtos"], mockEpis),
-          buscarPrimeiraLista(["/tamanhos", "/tamanho"], mockTamanhos),
-          buscarPrimeiraLista(
-            ["/entrada-epi", "/entrada_epi", "/entradas"],
-            mockEntradasInicial
-          ),
-        ]);
-
-      setFornecedores(listaFornecedores.map(normalizarFornecedor));
-      setEpis(listaEpis.map(normalizarEpi));
-      setTamanhos(listaTamanhos.map(normalizarTamanho));
-      setEntradas(listaEntradas.map(normalizarEntrada));
+      const dados = await carregarDadosEntradas();
+      setFornecedores(dados.fornecedores);
+      setEpis(dados.epis);
+      setTamanhos(dados.tamanhos);
+      setEntradas(dados.entradas);
     } catch (erro) {
       console.error("Erro ao carregar entradas:", erro);
       setErroTela(
         erro?.message || "Não foi possível carregar os registros de entrada."
       );
-      setFornecedores(mockFornecedores.map(normalizarFornecedor));
-      setEpis(mockEpis.map(normalizarEpi));
-      setTamanhos(mockTamanhos.map(normalizarTamanho));
-      setEntradas(mockEntradasInicial.map(normalizarEntrada));
+
+      const dadosMock = obterDadosMockEntradas();
+      setFornecedores(dadosMock.fornecedores);
+      setEpis(dadosMock.epis);
+      setTamanhos(dadosMock.tamanhos);
+      setEntradas(dadosMock.entradas);
     } finally {
       setCarregandoTela(false);
     }
@@ -256,27 +97,6 @@ function Entradas({ usuarioLogado }) {
   useEffect(() => {
     carregarEntradas();
   }, []);
-
-  const formatarData = (data) => {
-    if (!data) return "--";
-    const texto = String(data).substring(0, 10);
-
-    if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
-      const [ano, mes, dia] = texto.split("-");
-      return `${dia}/${mes}/${ano}`;
-    }
-
-    const dataObj = new Date(data);
-    if (Number.isNaN(dataObj.getTime())) return "--";
-    return dataObj.toLocaleDateString("pt-BR");
-  };
-
-  const formatarMoeda = (valor) => {
-    return Number(valor || 0).toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    });
-  };
 
   const entradasResolvidas = useMemo(() => {
     return entradas.map((entrada) => {
@@ -303,80 +123,28 @@ function Entradas({ usuarioLogado }) {
   }, [entradas, epis, tamanhos, fornecedores]);
 
   const entradasFiltradas = useMemo(() => {
-    const termo = busca.toLowerCase().trim();
-
-    if (!termo) return entradasResolvidas;
-
-    return entradasResolvidas.filter((e) => {
-      return (
-        (e.epiNome || "").toLowerCase().includes(termo) ||
-        (e.epiFabricante || "").toLowerCase().includes(termo) ||
-        (e.epiCA || "").toLowerCase().includes(termo) ||
-        (e.fornecedorNome || "").toLowerCase().includes(termo) ||
-        (e.lote || "").toLowerCase().includes(termo) ||
-        (e.nota_fiscal_numero || "").toLowerCase().includes(termo) ||
-        (e.nota_fiscal_serie || "").toLowerCase().includes(termo) ||
-        (e.tamanhoNome || "").toLowerCase().includes(termo)
-      );
-    });
+    return filtrarEntradas(entradasResolvidas, busca);
   }, [entradasResolvidas, busca]);
 
   const entradasOrdenadas = useMemo(() => {
-    return [...entradasFiltradas].sort((a, b) => {
-      if (a.data_entrada < b.data_entrada) return 1;
-      if (a.data_entrada > b.data_entrada) return -1;
-      return 0;
-    });
+    return ordenarEntradasPorDataDesc(entradasFiltradas);
   }, [entradasFiltradas]);
 
   const resumoTela = useMemo(() => {
-    return {
-      totalRegistros: entradasOrdenadas.length,
-      totalItens: entradasOrdenadas.reduce(
-        (acc, item) => acc + Number(item.quantidade || 0),
-        0
-      ),
-      valorTotal: entradasOrdenadas.reduce(
-        (acc, item) =>
-          acc + Number(item.quantidade || 0) * Number(item.valor_unitario || 0),
-        0
-      ),
-    };
+    return resumirEntradas(entradasOrdenadas);
   }, [entradasOrdenadas]);
 
+  const paginacao = useMemo(() => {
+    return paginarLista(entradasOrdenadas, paginaAtual, itensPorPagina);
+  }, [entradasOrdenadas, paginaAtual]);
+
+  const { totalPaginas, paginaSegura, itens: entradasVisiveis } = paginacao;
+
   useEffect(() => {
-    const total = Math.max(1, Math.ceil(entradasOrdenadas.length / itensPorPagina));
-    if (paginaAtual > total) setPaginaAtual(total);
-  }, [paginaAtual, entradasOrdenadas.length]);
-
-  const indexUltimoItem = paginaAtual * itensPorPagina;
-  const indexPrimeiroItem = indexUltimoItem - itensPorPagina;
-  const entradasVisiveis = entradasOrdenadas.slice(indexPrimeiroItem, indexUltimoItem);
-  const totalPaginas = Math.max(1, Math.ceil(entradasOrdenadas.length / itensPorPagina));
-
-  function resetarFormulario() {
-    setIdFornecedor("");
-    setIdEpi("");
-    setIdTamanho("");
-    setQuantidade("");
-    setDataEntrada(new Date().toISOString().split("T")[0]);
-    setDataFabricacao("");
-    setDataValidade("");
-    setLote("");
-    setValorUnitario("");
-    setNotaFiscalNumero("");
-    setNotaFiscalSerie("");
-  }
-
-  function abrirModal() {
-    resetarFormulario();
-    setModalAberto(true);
-  }
-
-  function fecharModal() {
-    if (carregando) return;
-    setModalAberto(false);
-  }
+    if (paginaAtual !== paginaSegura) {
+      setPaginaAtual(paginaSegura);
+    }
+  }, [paginaAtual, paginaSegura]);
 
   const salvarEntrada = async () => {
     if (!idFornecedor || !idEpi || !idTamanho || !quantidade || !dataEntrada) {
@@ -414,25 +182,8 @@ function Entradas({ usuarioLogado }) {
       nota_fiscal_serie: notaFiscalSerie.trim(),
     };
 
-    let salvouNoServidor = false;
-
     try {
-      try {
-        await api.post("/entrada-epi", pacoteDados);
-        salvouNoServidor = true;
-      } catch (erro) {
-        try {
-          await api.post("/entrada_epi", pacoteDados);
-          salvouNoServidor = true;
-        } catch (erro2) {
-          try {
-            await api.post("/entradas", pacoteDados);
-            salvouNoServidor = true;
-          } catch (erro3) {
-            salvouNoServidor = false;
-          }
-        }
-      }
+      const salvouNoServidor = await salvarEntradaNoServidor(pacoteDados);
 
       if (salvouNoServidor) {
         await carregarEntradas();
@@ -695,9 +446,9 @@ function Entradas({ usuarioLogado }) {
             <div className="flex justify-between items-center mt-6 px-1">
               <button
                 onClick={() => setPaginaAtual((prev) => Math.max(prev - 1, 1))}
-                disabled={paginaAtual === 1}
+                disabled={paginaSegura === 1}
                 className={`px-4 py-2 rounded text-sm font-bold border ${
-                  paginaAtual === 1
+                  paginaSegura === 1
                     ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                     : "bg-white text-emerald-700 hover:bg-emerald-50 border-emerald-200"
                 }`}
@@ -706,16 +457,16 @@ function Entradas({ usuarioLogado }) {
               </button>
 
               <span className="text-xs lg:text-sm text-gray-600">
-                Pág. <b className="text-gray-900">{paginaAtual}</b> de <b>{totalPaginas}</b>
+                Pág. <b className="text-gray-900">{paginaSegura}</b> de <b>{totalPaginas}</b>
               </span>
 
               <button
                 onClick={() =>
                   setPaginaAtual((prev) => Math.min(prev + 1, totalPaginas))
                 }
-                disabled={paginaAtual === totalPaginas}
+                disabled={paginaSegura === totalPaginas}
                 className={`px-4 py-2 rounded text-sm font-bold border ${
-                  paginaAtual === totalPaginas
+                  paginaSegura === totalPaginas
                     ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                     : "bg-white text-emerald-700 hover:bg-emerald-50 border-emerald-200"
                 }`}
@@ -727,203 +478,37 @@ function Entradas({ usuarioLogado }) {
         </>
       )}
 
-      {modalAberto && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-fade-in flex flex-col max-h-[90vh]">
-            <div className="bg-gray-50 px-6 py-4 border-b flex justify-between items-center shrink-0">
-              <h3 className="text-lg font-bold text-gray-800">📦 Nova Entrada</h3>
-              <button
-                onClick={fecharModal}
-                className="text-gray-400 hover:text-gray-600 font-bold text-xl"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto">
-              <div className="col-span-1 md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Selecione o EPI <span className="text-red-500">*</span>
-                </label>
-                <select
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
-                  value={idEpi}
-                  onChange={(e) => setIdEpi(e.target.value)}
-                >
-                  <option value="">Selecione...</option>
-                  {epis.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tamanho <span className="text-red-500">*</span>
-                </label>
-                <select
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
-                  value={idTamanho}
-                  onChange={(e) => setIdTamanho(e.target.value)}
-                >
-                  <option value="">Selecione...</option>
-                  {tamanhos.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.tamanho}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Quantidade <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                  placeholder="Ex: 50"
-                  value={quantidade}
-                  onChange={(e) => setQuantidade(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Data da Entrada <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                  value={dataEntrada}
-                  onChange={(e) => setDataEntrada(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Valor Unitário (R$)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                  placeholder="0.00"
-                  value={valorUnitario}
-                  onChange={(e) => setValorUnitario(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fornecedor <span className="text-red-500">*</span>
-                </label>
-                <select
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
-                  value={idFornecedor}
-                  onChange={(e) => setIdFornecedor(e.target.value)}
-                >
-                  <option value="">Selecione...</option>
-                  {fornecedores.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.nome_fantasia || item.razao_social}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Número do Lote
-                </label>
-                <input
-                  type="text"
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                  placeholder="Ex: LT-2024"
-                  value={lote}
-                  onChange={(e) => setLote(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Data de Fabricação
-                </label>
-                <input
-                  type="date"
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                  value={dataFabricacao}
-                  onChange={(e) => setDataFabricacao(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Data de Validade
-                </label>
-                <input
-                  type="date"
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                  value={dataValidade}
-                  onChange={(e) => setDataValidade(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Número da Nota Fiscal
-                </label>
-                <input
-                  type="text"
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                  placeholder="Ex: 12345"
-                  value={notaFiscalNumero}
-                  onChange={(e) => setNotaFiscalNumero(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Série da Nota Fiscal
-                </label>
-                <input
-                  type="text"
-                  className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                  placeholder="Ex: 1"
-                  value={notaFiscalSerie}
-                  onChange={(e) => setNotaFiscalSerie(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t shrink-0">
-              <button
-                onClick={fecharModal}
-                disabled={carregando}
-                className="px-4 py-2 text-gray-700 font-medium hover:bg-gray-200 rounded-lg transition disabled:opacity-60"
-              >
-                Cancelar
-              </button>
-
-              <button
-                onClick={salvarEntrada}
-                disabled={carregando}
-                className={`px-4 py-2 text-white font-bold rounded-lg shadow-md transition ${
-                  carregando
-                    ? "bg-emerald-400 cursor-not-allowed"
-                    : "bg-emerald-600 hover:bg-emerald-700"
-                }`}
-              >
-                {carregando ? "Registrando..." : "Registrar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ModalEntrada
+        aberto={modalAberto}
+        onClose={fecharModal}
+        onSalvar={salvarEntrada}
+        carregando={carregando}
+        epis={epis}
+        tamanhos={tamanhos}
+        fornecedores={fornecedores}
+        idEpi={idEpi}
+        setIdEpi={setIdEpi}
+        idTamanho={idTamanho}
+        setIdTamanho={setIdTamanho}
+        quantidade={quantidade}
+        setQuantidade={setQuantidade}
+        dataEntrada={dataEntrada}
+        setDataEntrada={setDataEntrada}
+        valorUnitario={valorUnitario}
+        setValorUnitario={setValorUnitario}
+        idFornecedor={idFornecedor}
+        setIdFornecedor={setIdFornecedor}
+        lote={lote}
+        setLote={setLote}
+        dataFabricacao={dataFabricacao}
+        setDataFabricacao={setDataFabricacao}
+        dataValidade={dataValidade}
+        setDataValidade={setDataValidade}
+        notaFiscalNumero={notaFiscalNumero}
+        setNotaFiscalNumero={setNotaFiscalNumero}
+        notaFiscalSerie={notaFiscalSerie}
+        setNotaFiscalSerie={setNotaFiscalSerie}
+      />
     </div>
   );
 }
